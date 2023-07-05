@@ -32,11 +32,37 @@ pdiParams.CoderInfo.StorageClass = 'ExportedGlobal';
 pdiParams.CoderInfo.Identifier = 'gPdiParams';
 
 %
+%   Open the data dictionary
+%
+
+dictObj = Simulink.data.dictionary.open('PdiExperiment.sldd');
+
+%
+%   Grab the current pdiParams from the data dictionary so we can
+%   Copy the PDI parameter values that have already been set from the
+%   previous version of the bus to the new version of the bus.
+%
+
+dataSectionObj = getSection(dictObj, 'Design Data');
+try
+    origPdiParamRef = getEntry(dataSectionObj, 'pdiParams');
+    origPdiParams = getValue(origPdiParamRef);
+
+    %
+    % Copy the parameters in the old parameter object to the new
+    % parameter object.
+    %
+
+    pdiParams = CopyParams(pdiParams, origPdiParams);
+catch
+    fprintf ("Unable to find pdiParams in data dictionary\n");
+end
+
+%
 % Put the new pdiParams in the data dictionary replacing any value that
 % might have previously been there.
 %
 
-dictObj = Simulink.data.dictionary.open('PdiExperiment.sldd');
 replaceEntry(dictObj, 'pdiBusMatLabStruct', pdiBusMatLabStruct);
 replaceEntry(dictObj, 'pdiParams', pdiParams);
 
@@ -78,3 +104,40 @@ if exist('pdiFound', 'var')
 end
 
 addEntry(dataSectionObj, entryName, entryValue);
+
+
+function structNew = CopyParams(structNew, structOld)
+%
+% Copy Params takes two Simulink Parameters that are a duality of busses
+% and structures and copies all of the common parameter values from the
+% old bus/structure to the new bus/structure.
+%
+% structOld is a Simulink Parameter that consists of a structure that
+% overlays a bus. The values of the fields of this structure need to be
+% copied into the new structure.
+% structNew is a new Simulink Parameter that consists of a structure that
+% overlays a bus. Any fields that are common to structOld and structNew
+% should be copied from structOld to structNew.
+%
+% returns - structNew, the new structure that has had the old parameter
+% values copied to it.
+%
+
+fieldNamesOld = fieldnames(structOld.Value);
+fieldNamesNew = fieldnames(structNew.Value);
+
+%
+% Find the field names that are common to both structures.
+%
+commonFields = intersect(fieldNamesOld, fieldNamesNew);
+
+%
+% Loop through the common field names and copy the old values to the new
+% parameter.
+%
+if size(commonFields, 1) > 0
+    for currField = commonFields(:)',
+        structNew.Value = setfield(structNew.Value, currField{:}, ...
+            getfield(structOld.Value, currField{:}));
+    end
+end
