@@ -53,7 +53,7 @@ try
     % parameter object.
     %
 
-    pdiParams = CopyParams(pdiParams, origPdiParams);
+    pdiParams.Value = CopyParams(pdiParams.Value, origPdiParams.Value);
 catch
     fprintf ("Unable to find pdiParams in data dictionary\n");
 end
@@ -124,29 +124,13 @@ function structNew = CopyParams(structNew, structOld)
 % values copied to it.
 %
 
-% 
-% Determines if the structOld is a structure that contains 'DataType'
-% Variable then sets structSet to be true, otherwise false. 
-%
-if nnz(contains(fieldnames(structOld), 'DataType')) > 0 
-    structSet = true; 
-else 
-    structSet = false; 
-end
-
-%
 % If the structOld is a structure that contains 'DataType' vairable, then
-% obtain the fieldnames nested within 'Value' of both structOld and 
-% structNew. Otherwise obtain the fieldnames of the input structOld and 
-% structNew. 
+% obtain the fieldnames nested within 'Value' of both structOld and
+% structNew. Otherwise obtain the fieldnames of the input structOld and
+% structNew.
 %
-if structSet
-    fieldNamesOld = fieldnames(structOld.Value);
-    fieldNamesNew = fieldnames(structNew.Value);
-else
-    fieldNamesOld = fieldnames(structOld);
-    fieldNamesNew = fieldnames(structNew);
-end
+fieldNamesOld = fieldnames(structOld);
+fieldNamesNew = fieldnames(structNew);
 
 %
 % Find the field names that are common to both structures.
@@ -156,26 +140,17 @@ commonFields = intersect(fieldNamesOld, fieldNamesNew);
 %
 % Loop through the common field names and copy the old values to the new
 % parameter. If there is a nested structure then call CopyParams for the
-% nest structure(s). 
+% nest structure(s).
 %
 if size(commonFields, 1) > 0
     for currField = commonFields(:)'
-        if structSet
-            forOldField = getfield(structOld.Value, currField{:});
-            forNewField = getfield(structNew.Value, currField{:});
-        else
-            forOldField = getfield(structOld, currField{:});
-            forNewField = getfield(structNew, currField{:});
-        end
+        forOldField = getfield(structOld, currField{:});
+        forNewField = getfield(structNew, currField{:});
         if ~isstruct(forOldField)
-            if structSet
-                structNew.Value = setfield(structNew.Value, ...
-                     currField{:}, forOldField);
-            else
-                structNew = setfield(structNew, currField{:}, forOldField);
-            end
+            structNew = setfield(structNew, ...
+                currField{:}, forOldField);
         else
-            structNew.Value.(currField{:}) = CopyParams(...
+            structNew.(currField{:}) = CopyParams(...
                 forNewField, forOldField);
         end
     end
