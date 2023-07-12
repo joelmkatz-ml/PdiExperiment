@@ -11,8 +11,8 @@ function CreatePdiBusParameter
 %   components is changed to update the MatLab Structure and the data
 %   dictionary. It does not need to be run every time the project starts.
 %
-
-scope = Simulink.data.DataDictionary('PdiExperiment.sldd');
+dictName = 'PdiExperiment.sldd'; 
+scope = Simulink.data.DataDictionary(dictName);
 pStruct = [];
 dims = [1,1];
 obj = 'pdiBus';
@@ -35,7 +35,7 @@ pdiParams.CoderInfo.Identifier = 'gPdiParams';
 %   Open the data dictionary
 %
 
-dictObj = Simulink.data.dictionary.open('PdiExperiment.sldd');
+dictObj = Simulink.data.dictionary.open(dictName);
 
 %
 %   Grab the current pdiParams from the data dictionary so we can
@@ -124,10 +124,8 @@ function structNew = CopyParams(structNew, structOld)
 % values copied to it.
 %
 
-% If the structOld is a structure that contains 'DataType' vairable, then
-% obtain the fieldnames nested within 'Value' of both structOld and
-% structNew. Otherwise obtain the fieldnames of the input structOld and
-% structNew.
+%
+% Obtain the fieldnames of the input structOld and structNew.
 %
 fieldNamesOld = fieldnames(structOld);
 fieldNamesNew = fieldnames(structNew);
