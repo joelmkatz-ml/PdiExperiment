@@ -1,25 +1,25 @@
 function CreatePdiBusParameter
 %
-%   This code is used to open the Design Data portion of a data dictionary 
+%   This code is used to open the Design Data portion of a data dictionary
 %   and add a new Simulink Parameter that was derived from a structure that
 %   was created based off of the pdiBus in the data dictionary.
 %
 %   Everything needed to access parameters from the data dictionary can be
-%   found in the data dictionary. 
+%   found in the data dictionary.
 %
 %   This script needs to be run any time that the pdiBus or one of its
 %   components is changed to update the MatLab Structure and the data
 %   dictionary. It does not need to be run every time the project starts.
 %
-
-scope = Simulink.data.DataDictionary('PdiExperiment.sldd');
+dictName = 'PdiExperiment.sldd'; 
+scope = Simulink.data.DataDictionary(dictName);
 pStruct = [];
 dims = [1,1];
 obj = 'pdiBus';
 pdiBusMatLabStruct = Simulink.Bus.createMATLABStruct(obj, pStruct, dims, scope);
 
 %
-%   Create a SimulinkParameter from the structure. 
+%   Create a SimulinkParameter from the structure.
 %   Set the type to the pdiBus that the structure was generated from.
 %   Make the Storage Class Exported Global and the c name of the structure
 %   be gPdiParams.
@@ -35,7 +35,7 @@ pdiParams.CoderInfo.Identifier = 'gPdiParams';
 %   Open the data dictionary
 %
 
-dictObj = Simulink.data.dictionary.open('PdiExperiment.sldd');
+dictObj = Simulink.data.dictionary.open(dictName);
 
 %
 %   Grab the current pdiParams from the data dictionary so we can
@@ -53,7 +53,7 @@ try
     % parameter object.
     %
 
-    pdiParams = CopyParams(pdiParams, origPdiParams);
+    pdiParams.Value = CopyParams(pdiParams.Value, origPdiParams.Value);
 catch
     fprintf ("Unable to find pdiParams in data dictionary\n");
 end
@@ -67,18 +67,19 @@ replaceEntry(dictObj, 'pdiBusMatLabStruct', pdiBusMatLabStruct);
 replaceEntry(dictObj, 'pdiParams', pdiParams);
 
 %
-%   Save the data dictionary.
+%   Save and close the data dictionary.
 %
 
 dictObj.saveChanges();
+close(dictObj);
 
 clear pdiBusMatLabStruct pdiParams;
 
 
 function replaceEntry(dictObj, entryName, entryValue)
 %
-%  Locate the Data Dictionary member entryName in a specified data 
-%  dictionary section, dataSectionObj, and remove it if it is present. 
+%  Locate the Data Dictionary member entryName in a specified data
+%  dictionary section, dataSectionObj, and remove it if it is present.
 %  Then, add in the new member specified by entryName and entryValue.
 %
 %  dataSectionObj - an object pointing at the section of the data
@@ -91,7 +92,7 @@ function replaceEntry(dictObj, entryName, entryValue)
 dataSectionObj = getSection(dictObj, 'Design Data');
 
 try
-pdiFound = getEntry(dataSectionObj, entryName);
+    pdiFound = getEntry(dataSectionObj, entryName);
 catch
     fprintf ("Unable to find %s in data dictionary\n", entryName);
 end
@@ -99,8 +100,8 @@ end
 if exist('pdiFound', 'var')
     % fprintf("Parameter %s is in data dictionary\n", entryName);
     deleteEntry(pdiFound);
-% else
-%     fprintf("%s is not in Data Dictionary\n", entryName);
+    % else
+    %     fprintf("%s is not in Data Dictionary\n", entryName);
 end
 
 addEntry(dataSectionObj, entryName, entryValue);
@@ -123,8 +124,11 @@ function structNew = CopyParams(structNew, structOld)
 % values copied to it.
 %
 
-fieldNamesOld = fieldnames(structOld.Value);
-fieldNamesNew = fieldnames(structNew.Value);
+%
+% Obtain the fieldnames of the input structOld and structNew.
+%
+fieldNamesOld = fieldnames(structOld);
+fieldNamesNew = fieldnames(structNew);
 
 %
 % Find the field names that are common to both structures.
@@ -133,11 +137,19 @@ commonFields = intersect(fieldNamesOld, fieldNamesNew);
 
 %
 % Loop through the common field names and copy the old values to the new
-% parameter.
+% parameter. If there is a nested structure then call CopyParams for the
+% nest structure(s).
 %
 if size(commonFields, 1) > 0
-    for currField = commonFields(:)',
-        structNew.Value = setfield(structNew.Value, currField{:}, ...
-            getfield(structOld.Value, currField{:}));
+    for currField = commonFields(:)'
+        forOldField = getfield(structOld, currField{:});
+        forNewField = getfield(structNew, currField{:});
+        if ~isstruct(forOldField)
+            structNew = setfield(structNew, ...
+                currField{:}, forOldField);
+        else
+            structNew.(currField{:}) = CopyParams(...
+                forNewField, forOldField);
+        end
     end
 end
